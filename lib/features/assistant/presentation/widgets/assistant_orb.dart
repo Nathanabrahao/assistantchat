@@ -1,100 +1,103 @@
 import 'package:flutter/material.dart';
 
-class AssistantOrb extends StatefulWidget {
+class AssistantOrb extends StatelessWidget {
   const AssistantOrb({
     required this.active,
+    required this.audioLevel,
     super.key,
   });
 
   final bool active;
 
-  @override
-  State<AssistantOrb> createState() => _AssistantOrbState();
-}
-
-class _AssistantOrbState extends State<AssistantOrb>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  late final Animation<double> _scaleAnimation;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.94,
-      end: 1.06,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeInOut,
-      ),
-    );
-
-    if (widget.active) {
-      _controller.repeat(reverse: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(covariant AssistantOrb oldWidget) {
-    super.didUpdateWidget(oldWidget);
-
-    if (widget.active && !oldWidget.active) {
-      _controller.repeat(reverse: true);
-    }
-
-    if (!widget.active && oldWidget.active) {
-      _controller.stop();
-      _controller.reset();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  final double audioLevel;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
 
-    return ScaleTransition(
-      scale: _scaleAnimation,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
-        width: 150,
-        height: 150,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: widget.active
-              ? colors.primaryContainer
-              : colors.surfaceContainerHighest,
-          boxShadow: widget.active
-              ? [
-                  BoxShadow(
-                    color: colors.primary.withValues(alpha: 0.25),
-                    blurRadius: 40,
-                    spreadRadius: 10,
+    final level = audioLevel.clamp(
+      0.0,
+      1.0,
+    );
+
+    final scale = active
+        ? 1.0 + (level * 0.28)
+        : 1.0;
+
+    final glowBlur = active
+        ? 25.0 + (level * 45)
+        : 0.0;
+
+    final glowSpread = active
+        ? 4.0 + (level * 12)
+        : 0.0;
+
+    return SizedBox(
+      width: 210,
+      height: 210,
+      child: Center(
+        child: AnimatedScale(
+          scale: scale,
+          duration: const Duration(
+            milliseconds: 90,
+          ),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: const Duration(
+              milliseconds: 90,
+            ),
+            width: 150,
+            height: 150,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: active
+                  ? colors.primaryContainer
+                  : colors.surfaceContainerHighest,
+              boxShadow: active
+                  ? [
+                      BoxShadow(
+                        color: colors.primary.withValues(
+                          alpha: 0.30 + (level * 0.25),
+                        ),
+                        blurRadius: glowBlur,
+                        spreadRadius: glowSpread,
+                      ),
+                    ]
+                  : [],
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (active)
+                  AnimatedContainer(
+                    duration: const Duration(
+                      milliseconds: 90,
+                    ),
+                    width: 105 + (level * 20),
+                    height: 105 + (level * 20),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: colors.primary.withValues(
+                          alpha: 0.25,
+                        ),
+                        width: 2,
+                      ),
+                    ),
                   ),
-                ]
-              : [],
-        ),
-        child: Icon(
-          widget.active
-              ? Icons.graphic_eq_rounded
-              : Icons.mic_none_rounded,
-          size: 64,
-          color: widget.active
-              ? colors.primary
-              : colors.onSurfaceVariant,
+
+                Icon(
+                  active
+                      ? Icons.graphic_eq_rounded
+                      : Icons.mic_none_rounded,
+                  size: 64,
+                  color: active
+                      ? colors.primary
+                      : colors.onSurfaceVariant,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

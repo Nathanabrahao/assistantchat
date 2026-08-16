@@ -14,16 +14,10 @@ class AssistantPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(assistantControllerProvider);
 
-    final controller = ref.read(
-      assistantControllerProvider.notifier,
-    );
+    final controller = ref.read(assistantControllerProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          AppConstants.appName,
-        ),
-      ),
+      appBar: AppBar(title: const Text(AppConstants.appName)),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -32,14 +26,10 @@ class AssistantPage extends ConsumerWidget {
               const Spacer(),
 
               Text(
-                'Seu assistente pessoal',
+                'Olá Nathan Abrahão',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineMedium
-                    ?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                style: Theme.of(context).textTheme.headlineMedium
+                    ?.copyWith(fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 10),
@@ -49,27 +39,21 @@ class AssistantPage extends ConsumerWidget {
                     ? 'Estou pronto para ouvir você.'
                     : 'Ative quando quiser começar.',
                 textAlign: TextAlign.center,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyLarge
-                    ?.copyWith(
-                      color: Theme.of(context)
-                          .colorScheme
-                          .onSurfaceVariant,
-                    ),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
 
               const SizedBox(height: 48),
 
               AssistantOrb(
                 active: state.isActive,
+                audioLevel: state.audioLevel,
               ),
 
               const Spacer(),
 
-              AssistantStatusCard(
-                state: state,
-              ),
+              AssistantStatusCard(state: state),
 
               const SizedBox(height: 20),
 
@@ -99,7 +83,7 @@ class _AssistantActionButton extends StatelessWidget {
 
   final Future<void> Function() onActivate;
 
-  final void Function() onDeactivate;
+  final Future<void> Function() onDeactivate;
 
   final Future<void> Function() onOpenSettings;
 
@@ -114,9 +98,7 @@ class _AssistantActionButton extends StatelessWidget {
             SizedBox(
               width: 20,
               height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2),
             ),
             SizedBox(width: 12),
             Text('Ativando...'),
@@ -125,23 +107,18 @@ class _AssistantActionButton extends StatelessWidget {
       );
     }
 
-    if (state.status ==
-        AssistantStatus.permissionPermanentlyDenied) {
+    if (state.status == AssistantStatus.permissionPermanentlyDenied) {
       return Column(
         children: [
           FilledButton.icon(
             onPressed: onOpenSettings,
             icon: const Icon(Icons.settings_rounded),
-            label: const Text(
-              'Abrir configurações',
-            ),
+            label: const Text('Abrir configurações'),
           ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: onActivate,
-            child: const Text(
-              'Verificar novamente',
-            ),
+            child: const Text('Verificar novamente'),
           ),
         ],
       );
@@ -150,23 +127,15 @@ class _AssistantActionButton extends StatelessWidget {
     if (state.isActive) {
       return FilledButton.icon(
         onPressed: onDeactivate,
-        icon: const Icon(
-          Icons.power_settings_new_rounded,
-        ),
-        label: const Text(
-          'Desativar assistente',
-        ),
+        icon: const Icon(Icons.power_settings_new_rounded),
+        label: const Text('Desativar assistente'),
       );
     }
 
     return FilledButton.icon(
       onPressed: onActivate,
-      icon: const Icon(
-        Icons.mic_rounded,
-      ),
-      label: const Text(
-        'Ativar assistente',
-      ),
+      icon: const Icon(Icons.mic_rounded),
+      label: const Text('Ativar assistente'),
     );
   }
 }
