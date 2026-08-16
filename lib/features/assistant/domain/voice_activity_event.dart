@@ -1,0 +1,4 @@
+enum VoiceActivityEvent {
+  speechStarted,
+  speechEnded,
+}

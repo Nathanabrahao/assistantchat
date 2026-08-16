@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/assistant_state.dart';
 
 class AssistantStatusCard extends StatelessWidget {
-  const AssistantStatusCard({
-    required this.state,
-    super.key,
-  });
+  const AssistantStatusCard({required this.state, super.key});
 
   final AssistantState state;
 
@@ -25,35 +22,22 @@ class AssistantStatusCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
-                _iconForStatus(),
-                color: _colorForStatus(colors),
-              ),
+              Icon(_iconForStatus(), color: _colorForStatus(colors)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       _titleForStatus(),
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       state.message,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(
-                            color:
-                                colors.onSurfaceVariant,
-                          ),
+                      style: Theme.of(context).textTheme.bodyMedium
+                          ?.copyWith(color: colors.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -78,12 +62,8 @@ class AssistantStatusCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: Text(
                 'Microfone ${(state.audioLevel * 100).round()}%',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(
-                      color: colors.onSurfaceVariant,
-                    ),
+                style: Theme.of(context).textTheme.bodySmall
+                    ?.copyWith(color: colors.onSurfaceVariant),
               ),
             ),
           ],
@@ -94,52 +74,53 @@ class AssistantStatusCard extends StatelessWidget {
 
   String _titleForStatus() {
     return switch (state.status) {
-      AssistantStatus.inactive =>
-        'Assistente desativado',
-      AssistantStatus.requestingPermission =>
-        'Preparando assistente',
-      AssistantStatus.active =>
-        'Assistente ativo',
-      AssistantStatus.permissionDenied =>
-        'Microfone necessário',
-      AssistantStatus.permissionPermanentlyDenied =>
-        'Permissão bloqueada',
-      AssistantStatus.error =>
-        'Erro',
+      AssistantStatus.inactive => 'Assistente desativado',
+
+      AssistantStatus.requestingPermission => 'Preparando assistente',
+
+      AssistantStatus.ready => 'Assistente ativo',
+
+      AssistantStatus.listening => 'Ouvindo você',
+
+      AssistantStatus.permissionDenied => 'Microfone necessário',
+
+      AssistantStatus.permissionPermanentlyDenied => 'Permissão bloqueada',
+
+      AssistantStatus.error => 'Erro',
     };
   }
 
   IconData _iconForStatus() {
     return switch (state.status) {
-      AssistantStatus.inactive =>
-        Icons.power_settings_new_rounded,
-      AssistantStatus.requestingPermission =>
-        Icons.hourglass_top_rounded,
-      AssistantStatus.active =>
-        Icons.hearing_rounded,
-      AssistantStatus.permissionDenied =>
-        Icons.mic_off_rounded,
-      AssistantStatus.permissionPermanentlyDenied =>
-        Icons.settings_rounded,
-      AssistantStatus.error =>
-        Icons.error_outline_rounded,
+      AssistantStatus.inactive => Icons.power_settings_new_rounded,
+
+      AssistantStatus.requestingPermission => Icons.hourglass_top_rounded,
+
+      AssistantStatus.ready => Icons.hearing_rounded,
+
+      AssistantStatus.listening => Icons.graphic_eq_rounded,
+
+      AssistantStatus.permissionDenied => Icons.mic_off_rounded,
+
+      AssistantStatus.permissionPermanentlyDenied => Icons.settings_rounded,
+
+      AssistantStatus.error => Icons.error_outline_rounded,
     };
   }
 
-  Color _colorForStatus(
-    ColorScheme colors,
-  ) {
+  Color _colorForStatus(ColorScheme colors) {
     return switch (state.status) {
-      AssistantStatus.active =>
-        colors.primary,
-      AssistantStatus.error =>
-        colors.error,
-      AssistantStatus.permissionDenied =>
-        colors.error,
-      AssistantStatus.permissionPermanentlyDenied =>
-        colors.error,
-      _ =>
-        colors.onSurfaceVariant,
+      AssistantStatus.ready => colors.primary,
+
+      AssistantStatus.listening => colors.primary,
+
+      AssistantStatus.error => colors.error,
+
+      AssistantStatus.permissionDenied => colors.error,
+
+      AssistantStatus.permissionPermanentlyDenied => colors.error,
+
+      _ => colors.onSurfaceVariant,
     };
   }
 }

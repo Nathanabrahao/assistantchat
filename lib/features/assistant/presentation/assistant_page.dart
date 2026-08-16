@@ -48,6 +48,7 @@ class AssistantPage extends ConsumerWidget {
 
               AssistantOrb(
                 active: state.isActive,
+                listening: state.isListening,
                 audioLevel: state.audioLevel,
               ),
 

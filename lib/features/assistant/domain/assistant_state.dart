@@ -1,9 +1,16 @@
 enum AssistantStatus {
   inactive,
+
   requestingPermission,
-  active,
+
+  ready,
+
+  listening,
+
   permissionDenied,
+
   permissionPermanentlyDenied,
+
   error,
 }
 
@@ -18,21 +25,21 @@ class AssistantState {
 
   final String message;
 
-  /// Intensidade normalizada do áudio.
-  ///
-  /// 0.0 = silêncio
-  /// 1.0 = intensidade máxima
   final double audioLevel;
 
   factory AssistantState.initial() {
     return const AssistantState(
       status: AssistantStatus.inactive,
       message: 'Ative o assistente para começar.',
-      audioLevel: 0,
     );
   }
 
-  bool get isActive => status == AssistantStatus.active;
+  bool get isActive =>
+      status == AssistantStatus.ready ||
+      status == AssistantStatus.listening;
+
+  bool get isListening =>
+      status == AssistantStatus.listening;
 
   bool get isLoading =>
       status == AssistantStatus.requestingPermission;

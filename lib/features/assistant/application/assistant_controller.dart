@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/assistant_state.dart';
+import '../domain/voice_activity_event.dart';
 import '../services/audio_capture_service.dart';
 import '../services/microphone_permission_service.dart';
+import '../services/voice_activity_detector.dart';
 
 final assistantControllerProvider =
     NotifierProvider<AssistantController, AssistantState>(
@@ -14,14 +16,19 @@ final assistantControllerProvider =
 class AssistantController extends Notifier<AssistantState> {
   StreamSubscription<double>? _audioLevelSubscription;
 
+  StreamSubscription<VoiceActivityEvent>?
+      _voiceActivitySubscription;
+
   @override
   AssistantState build() {
     ref.onDispose(() {
-      final subscription = _audioLevelSubscription;
+      unawaited(
+        _audioLevelSubscription?.cancel(),
+      );
 
-      if (subscription != null) {
-        unawaited(subscription.cancel());
-      }
+      unawaited(
+        _voiceActivitySubscription?.cancel(),
+      );
     });
 
     return AssistantState.initial();
@@ -35,7 +42,6 @@ class AssistantController extends Notifier<AssistantState> {
     state = const AssistantState(
       status: AssistantStatus.requestingPermission,
       message: 'Solicitando acesso ao microfone...',
-      audioLevel: 0,
     );
 
     try {
@@ -43,10 +49,10 @@ class AssistantController extends Notifier<AssistantState> {
         microphonePermissionServiceProvider,
       );
 
-      final permissionResult =
+      final result =
           await permissionService.requestPermission();
 
-      switch (permissionResult) {
+      switch (result) {
         case MicrophonePermissionResult.granted:
           await _startAudioCapture();
           break;
@@ -56,7 +62,6 @@ class AssistantController extends Notifier<AssistantState> {
             status: AssistantStatus.permissionDenied,
             message:
                 'Precisamos do microfone para ouvir seus comandos.',
-            audioLevel: 0,
           );
           break;
 
@@ -67,18 +72,16 @@ class AssistantController extends Notifier<AssistantState> {
             message:
                 'A permissão do microfone foi bloqueada. '
                 'Libere o acesso nas configurações.',
-            audioLevel: 0,
           );
           break;
       }
-    } catch (error) {
+    } catch (_) {
       await _stopAudioCapture();
 
       state = const AssistantState(
         status: AssistantStatus.error,
         message:
-            'Não foi possível iniciar a captura do microfone.',
-        audioLevel: 0,
+            'Não foi possível iniciar o microfone.',
       );
     }
   }
@@ -88,14 +91,21 @@ class AssistantController extends Notifier<AssistantState> {
       audioCaptureServiceProvider,
     );
 
+    final voiceDetector = ref.read(
+      voiceActivityDetectorProvider,
+    );
+
+    voiceDetector.reset();
+
     await _audioLevelSubscription?.cancel();
+
+    await _voiceActivitySubscription?.cancel();
 
     await audioService.start();
 
     state = const AssistantState(
-      status: AssistantStatus.active,
-      message: 'Estou ouvindo você.',
-      audioLevel: 0,
+      status: AssistantStatus.ready,
+      message: 'Aguardando você falar...',
     );
 
     _audioLevelSubscription =
@@ -105,6 +115,8 @@ class AssistantController extends Notifier<AssistantState> {
           return;
         }
 
+        voiceDetector.process(level);
+
         state = state.copyWith(
           audioLevel: level,
         );
@@ -113,18 +125,36 @@ class AssistantController extends Notifier<AssistantState> {
         Object error,
         StackTrace stackTrace,
       ) {
-        state = const AssistantState(
-          status: AssistantStatus.error,
-          message:
-              'Ocorreu um erro durante a captura do áudio.',
-          audioLevel: 0,
-        );
-
         unawaited(
-          audioService.stop(),
+          _handleAudioError(),
         );
       },
     );
+
+    _voiceActivitySubscription =
+        voiceDetector.events.listen(
+      _handleVoiceActivity,
+    );
+  }
+
+  void _handleVoiceActivity(
+    VoiceActivityEvent event,
+  ) {
+    switch (event) {
+      case VoiceActivityEvent.speechStarted:
+        state = state.copyWith(
+          status: AssistantStatus.listening,
+          message: 'Estou ouvindo...',
+        );
+        break;
+
+      case VoiceActivityEvent.speechEnded:
+        state = state.copyWith(
+          status: AssistantStatus.ready,
+          message: 'Aguardando você falar...',
+        );
+        break;
+    }
   }
 
   Future<void> deactivate() async {
@@ -135,7 +165,6 @@ class AssistantController extends Notifier<AssistantState> {
     state = const AssistantState(
       status: AssistantStatus.inactive,
       message: 'Assistente desativado.',
-      audioLevel: 0,
     );
 
     await _stopAudioCapture();
@@ -145,11 +174,30 @@ class AssistantController extends Notifier<AssistantState> {
     await _audioLevelSubscription?.cancel();
     _audioLevelSubscription = null;
 
+    await _voiceActivitySubscription?.cancel();
+    _voiceActivitySubscription = null;
+
+    final voiceDetector = ref.read(
+      voiceActivityDetectorProvider,
+    );
+
+    voiceDetector.reset();
+
     final audioService = ref.read(
       audioCaptureServiceProvider,
     );
 
     await audioService.stop();
+  }
+
+  Future<void> _handleAudioError() async {
+    await _stopAudioCapture();
+
+    state = const AssistantState(
+      status: AssistantStatus.error,
+      message:
+          'Ocorreu um erro durante a captura do áudio.',
+    );
   }
 
   Future<void> openSettings() async {
