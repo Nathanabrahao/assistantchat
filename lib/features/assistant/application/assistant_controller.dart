@@ -3,32 +3,22 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/assistant_state.dart';
-import '../domain/voice_activity_event.dart';
-import '../services/audio_capture_service.dart';
+import '../domain/realtime_event.dart';
 import '../services/microphone_permission_service.dart';
-import '../services/voice_activity_detector.dart';
+import '../services/realtime_service.dart';
 
 final assistantControllerProvider =
     NotifierProvider<AssistantController, AssistantState>(
-  AssistantController.new,
-);
+      AssistantController.new,
+    );
 
 class AssistantController extends Notifier<AssistantState> {
-  StreamSubscription<double>? _audioLevelSubscription;
-
-  StreamSubscription<VoiceActivityEvent>?
-      _voiceActivitySubscription;
+  StreamSubscription<RealtimeEvent>? _realtimeSubscription;
 
   @override
   AssistantState build() {
     ref.onDispose(() {
-      unawaited(
-        _audioLevelSubscription?.cancel(),
-      );
-
-      unawaited(
-        _voiceActivitySubscription?.cancel(),
-      );
+      unawaited(_realtimeSubscription?.cancel());
     });
 
     return AssistantState.initial();
@@ -45,165 +35,158 @@ class AssistantController extends Notifier<AssistantState> {
     );
 
     try {
-      final permissionService = ref.read(
-        microphonePermissionServiceProvider,
-      );
+      final permissionService = ref.read(microphonePermissionServiceProvider);
 
-      final result =
-          await permissionService.requestPermission();
+      final result = await permissionService.requestPermission();
 
       switch (result) {
         case MicrophonePermissionResult.granted:
-          await _startAudioCapture();
+          await _connectRealtime();
           break;
 
         case MicrophonePermissionResult.denied:
           state = const AssistantState(
             status: AssistantStatus.permissionDenied,
-            message:
-                'Precisamos do microfone para ouvir seus comandos.',
+            message: 'Precisamos do microfone para conversar.',
           );
           break;
 
         case MicrophonePermissionResult.permanentlyDenied:
           state = const AssistantState(
-            status:
-                AssistantStatus.permissionPermanentlyDenied,
-            message:
-                'A permissão do microfone foi bloqueada. '
-                'Libere o acesso nas configurações.',
+            status: AssistantStatus.permissionPermanentlyDenied,
+            message: 'A permissão do microfone foi bloqueada.',
           );
           break;
       }
     } catch (_) {
-      await _stopAudioCapture();
-
       state = const AssistantState(
         status: AssistantStatus.error,
-        message:
-            'Não foi possível iniciar o microfone.',
+        message: 'Não foi possível ativar o assistente.',
       );
     }
   }
 
-  Future<void> _startAudioCapture() async {
-    final audioService = ref.read(
-      audioCaptureServiceProvider,
-    );
+  Future<void> _connectRealtime() async {
+    final realtimeService = ref.read(realtimeServiceProvider);
 
-    final voiceDetector = ref.read(
-      voiceActivityDetectorProvider,
-    );
+    await _realtimeSubscription?.cancel();
 
-    voiceDetector.reset();
-
-    await _audioLevelSubscription?.cancel();
-
-    await _voiceActivitySubscription?.cancel();
-
-    await audioService.start();
+    _realtimeSubscription = realtimeService.events.listen(_handleRealtimeEvent);
 
     state = const AssistantState(
-      status: AssistantStatus.ready,
-      message: 'Aguardando você falar...',
+      status: AssistantStatus.connecting,
+      message: 'Conectando à inteligência artificial...',
     );
 
-    _audioLevelSubscription =
-        audioService.audioLevelStream.listen(
-      (level) {
-        if (!state.isActive) {
-          return;
-        }
+    try {
+      await realtimeService.connect();
 
-        voiceDetector.process(level);
-
-        state = state.copyWith(
-          audioLevel: level,
+      if (state.status == AssistantStatus.connecting) {
+        state = const AssistantState(
+          status: AssistantStatus.ready,
+          message: 'Pode falar.',
         );
-      },
-      onError: (
-        Object error,
-        StackTrace stackTrace,
-      ) {
-        unawaited(
-          _handleAudioError(),
-        );
-      },
-    );
+      }
+    } catch (error) {
+      await realtimeService.disconnect();
 
-    _voiceActivitySubscription =
-        voiceDetector.events.listen(
-      _handleVoiceActivity,
-    );
+      state = AssistantState(
+        status: AssistantStatus.error,
+        message: 'Falha ao conectar à IA: $error',
+      );
+    }
   }
 
-  void _handleVoiceActivity(
-    VoiceActivityEvent event,
-  ) {
-    switch (event) {
-      case VoiceActivityEvent.speechStarted:
-        state = state.copyWith(
-          status: AssistantStatus.listening,
-          message: 'Estou ouvindo...',
+  void _handleRealtimeEvent(RealtimeEvent event) {
+    switch (event.type) {
+      case RealtimeEventType.sessionReady:
+        state = const AssistantState(
+          status: AssistantStatus.ready,
+          message: 'Pode falar.',
         );
         break;
 
-      case VoiceActivityEvent.speechEnded:
-        state = state.copyWith(
-          status: AssistantStatus.ready,
-          message: 'Aguardando você falar...',
+      case RealtimeEventType.userSpeechStarted:
+        state = const AssistantState(
+          status: AssistantStatus.listening,
+          message: 'Estou ouvindo você...',
         );
+
+        break;
+
+      case RealtimeEventType.userSpeechStopped:
+        state = const AssistantState(
+          status: AssistantStatus.thinking,
+          message: 'Pensando...',
+        );
+        break;
+
+      case RealtimeEventType.responseStarted:
+        state = const AssistantState(
+          status: AssistantStatus.thinking,
+          message: 'Preparando resposta...',
+        );
+        break;
+
+      case RealtimeEventType.assistantSpeaking:
+        state = const AssistantState(
+          status: AssistantStatus.speaking,
+          message: 'Respondendo...',
+        );
+        break;
+
+      case RealtimeEventType.responseDone:
+        if (state.isListening || state.status == AssistantStatus.thinking) {
+          break;
+        }
+
+        state = const AssistantState(
+          status: AssistantStatus.ready,
+          message: 'Pode falar.',
+        );
+
+        break;
+
+      case RealtimeEventType.responseCancelled:
+        if (state.isListening || state.status == AssistantStatus.thinking) {
+          break;
+        }
+
+        state = const AssistantState(
+          status: AssistantStatus.ready,
+          message: 'Pode falar.',
+        );
+
+        break;
+
+      case RealtimeEventType.error:
+        state = const AssistantState(
+          status: AssistantStatus.error,
+          message: 'Ocorreu um erro na sessão Realtime.',
+        );
+        break;
+
+      case RealtimeEventType.unknown:
         break;
     }
   }
 
   Future<void> deactivate() async {
-    if (!state.isActive) {
-      return;
-    }
+    final realtimeService = ref.read(realtimeServiceProvider);
 
     state = const AssistantState(
       status: AssistantStatus.inactive,
       message: 'Assistente desativado.',
     );
 
-    await _stopAudioCapture();
-  }
+    await _realtimeSubscription?.cancel();
+    _realtimeSubscription = null;
 
-  Future<void> _stopAudioCapture() async {
-    await _audioLevelSubscription?.cancel();
-    _audioLevelSubscription = null;
-
-    await _voiceActivitySubscription?.cancel();
-    _voiceActivitySubscription = null;
-
-    final voiceDetector = ref.read(
-      voiceActivityDetectorProvider,
-    );
-
-    voiceDetector.reset();
-
-    final audioService = ref.read(
-      audioCaptureServiceProvider,
-    );
-
-    await audioService.stop();
-  }
-
-  Future<void> _handleAudioError() async {
-    await _stopAudioCapture();
-
-    state = const AssistantState(
-      status: AssistantStatus.error,
-      message:
-          'Ocorreu um erro durante a captura do áudio.',
-    );
+    await realtimeService.disconnect();
   }
 
   Future<void> openSettings() async {
-    final permissionService = ref.read(
-      microphonePermissionServiceProvider,
-    );
+    final permissionService = ref.read(microphonePermissionServiceProvider);
 
     await permissionService.openSettings();
   }

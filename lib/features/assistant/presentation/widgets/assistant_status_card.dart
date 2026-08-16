@@ -50,10 +50,10 @@ class AssistantStatusCard extends StatelessWidget {
 
             ClipRRect(
               borderRadius: BorderRadius.circular(20),
-              child: LinearProgressIndicator(
-                value: state.audioLevel,
-                minHeight: 8,
-              ),
+              // child: LinearProgressIndicator(
+              //   value: state.audioLevel,
+              //   minHeight: 8,
+              // ),
             ),
 
             const SizedBox(height: 8),
@@ -78,9 +78,15 @@ class AssistantStatusCard extends StatelessWidget {
 
       AssistantStatus.requestingPermission => 'Preparando assistente',
 
+      AssistantStatus.connecting => 'Conectando',
+
       AssistantStatus.ready => 'Assistente ativo',
 
       AssistantStatus.listening => 'Ouvindo você',
+
+      AssistantStatus.thinking => 'Pensando',
+
+      AssistantStatus.speaking => 'Respondendo',
 
       AssistantStatus.permissionDenied => 'Microfone necessário',
 
@@ -96,9 +102,15 @@ class AssistantStatusCard extends StatelessWidget {
 
       AssistantStatus.requestingPermission => Icons.hourglass_top_rounded,
 
+      AssistantStatus.connecting => Icons.cloud_sync_rounded,
+
       AssistantStatus.ready => Icons.hearing_rounded,
 
-      AssistantStatus.listening => Icons.graphic_eq_rounded,
+      AssistantStatus.listening => Icons.mic_rounded,
+
+      AssistantStatus.thinking => Icons.psychology_rounded,
+
+      AssistantStatus.speaking => Icons.graphic_eq_rounded,
 
       AssistantStatus.permissionDenied => Icons.mic_off_rounded,
 

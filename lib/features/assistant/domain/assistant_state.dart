@@ -3,9 +3,15 @@ enum AssistantStatus {
 
   requestingPermission,
 
+  connecting,
+
   ready,
 
   listening,
+
+  thinking,
+
+  speaking,
 
   permissionDenied,
 
@@ -35,14 +41,21 @@ class AssistantState {
   }
 
   bool get isActive =>
+      status == AssistantStatus.connecting ||
       status == AssistantStatus.ready ||
-      status == AssistantStatus.listening;
+      status == AssistantStatus.listening ||
+      status == AssistantStatus.thinking ||
+      status == AssistantStatus.speaking;
 
   bool get isListening =>
       status == AssistantStatus.listening;
 
+  bool get isSpeaking =>
+      status == AssistantStatus.speaking;
+
   bool get isLoading =>
-      status == AssistantStatus.requestingPermission;
+      status == AssistantStatus.requestingPermission ||
+      status == AssistantStatus.connecting;
 
   AssistantState copyWith({
     AssistantStatus? status,
